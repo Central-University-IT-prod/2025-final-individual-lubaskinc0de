@@ -1,0 +1,19 @@
+from crudik.domain.error.base import AppError
+
+
+class CampaignAlreadyExistsError(AppError): ...
+
+
+class CampaignDoesNotExistsError(AppError): ...
+
+
+class CampaignCannotBeInPastError(AppError): ...
+
+
+class CannotChangeCampaignAfterStartError(AppError): ...
+
+
+class CampaignContainsSwearsError(AppError): ...
+
+
+class ClickLimitGreaterThanImpressionsLimitError(AppError): ...

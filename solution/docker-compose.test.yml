@@ -1,0 +1,60 @@
+services:
+    wait-for-api:
+        extends:
+            file: docker-compose.base.yml
+            service: wait-for-api
+        depends_on:
+            nginx:
+                condition: service_healthy
+
+    nginx:
+        extends:
+            file: docker-compose.base.yml
+            service: nginx
+        depends_on:
+            - api
+
+    api:
+        extends:
+            file: docker-compose.base.yml
+            service: api
+        depends_on:
+            redis:
+                condition: service_healthy
+            db:
+                condition: service_healthy
+            minio:
+                condition: service_healthy
+
+    tests:
+        extends:
+            file: docker-compose.base.yml
+            service: code
+        container_name: tests
+        command: ["pytest", "-vvv"]
+        depends_on:
+            nginx:
+                condition: service_healthy
+
+    redis:
+        extends:
+            file: docker-compose.base.yml
+            service: redis
+
+    db:
+        extends:
+            file: docker-compose.base.yml
+            service: db
+
+    minio:
+        extends:
+            file: docker-compose.base.yml
+            service: minio
+
+    nginx-s3-gateway:
+        extends:
+            file: docker-compose.yml
+            service: nginx-s3-gateway
+        depends_on:
+            minio:
+                condition: service_healthy

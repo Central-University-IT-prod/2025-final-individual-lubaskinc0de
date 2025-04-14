@@ -1,0 +1,114 @@
+services:
+    grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        ports:
+            - "3000:3000"
+        environment:
+            GF_INSTALL_PLUGINS: yesoreyeram-infinity-datasource
+        volumes:
+            - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+            - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+
+    wait-for-api:
+        image: hello-world
+
+    nginx:
+        image: nginx:1.23.3
+        container_name: nginx
+        ports:
+            - "8080:8080"
+        volumes:
+            - ./nginx.conf:/etc/nginx/nginx.conf
+        depends_on:
+            - api
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8080/ping/"]
+            interval: 2s
+
+    code:
+        build: .
+        environment:
+            - POSTGRES_USERNAME=postgres
+            - POSTGRES_PASSWORD=postggpass
+            - POSTGRES_HOST=db
+            - POSTGRES_PORT=5432
+            - POSTGRES_DATABASE=
+            - SERVER_PORT=5000
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+            - MINIO_ACCESS_KEY=REDACTED
+            - MINIO_SECRET_KEY=REDACTED
+            - MINIO_URL=minio:9000
+            - FILE_SERVER=http://REDACTED:9331
+            - API_URL=http://nginx:8080
+            - YANDEX_GPT_FOLDER_ID=b1gu412051m7t8ia38fn
+            - YANDEX_GPT_API_KEY=REDACTED
+            - SWEAR_CHECK_ENABLED=0
+
+    api:
+        extends:
+            service: code
+        command: ["crudik", "run", "api"]
+        restart: on-failure
+        container_name: api
+        ports:
+            - 5000:5000
+        volumes:
+            - "./src/crudik/adapters/db/alembic/migrations/versions/:/home/app/src/crudik/adapters/db/alembic/migrations/versions/"
+
+    redis:
+        image: redis:7.0
+        container_name: redis_service
+        ports:
+            - "6379:6379"
+        command: ["redis-server", "--appendonly", "yes"]
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 2s
+
+    db:
+        container_name: persistence
+        image: postgres:14.1-alpine
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postggpass
+            - POSTGRES_HOST=db
+            - POSTGRES_PORT=5432
+        ports:
+            - 5432:5432
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 2s
+
+    minio:
+        image: minio/minio:latest
+        container_name: minio
+        ports:
+            - "9000:9000"
+            - "9001:9001"
+        environment:
+            MINIO_ROOT_USER: REDACTED
+            MINIO_ROOT_PASSWORD: REDACTED
+        command: server /data --console-address ":9001"
+        healthcheck:
+            test:
+                ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+            interval: 2s
+
+    nginx-s3-gateway:
+        image: ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss-20220310
+        container_name: nginx-s3-gateway
+        environment:
+            S3_ACCESS_KEY_ID: REDACTED
+            S3_SECRET_KEY: REDACTED
+            S3_BUCKET_NAME: images
+            S3_SERVER: minio
+            S3_SERVER_PROTO: "http"
+            AWS_SIGS_VERSION: 4
+            ALLOW_DIRECTORY_LIST: false
+            S3_SERVER_PORT: 9000
+            S3_STYLE: path
+            S3_REGION: us-east-1
+        ports:
+            - "9331:80"

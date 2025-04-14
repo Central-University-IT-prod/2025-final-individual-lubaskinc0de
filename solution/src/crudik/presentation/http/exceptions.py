@@ -1,0 +1,13 @@
+from crudik.domain.error.base import AppError
+
+
+class FileIsNotImageError(AppError): ...
+
+
+class FileTooBigError(AppError): ...
+
+
+class CannotReadFileSizeError(AppError): ...
+
+
+class CannotReadFileInfoError(AppError): ...
